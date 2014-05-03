@@ -1,9 +1,9 @@
 TARGET		= mandelbrot
-CC			= clang
-CFLAGS		= -std=c99 -Wall -I. -g
+CC			= gcc
+CFLAGS		= -std=c99 I. -g
 
-LINKER		= clang -o
-LFLAGS		= -Wall -I. -lm -lSDL2 -lSDL2_image `pkg-config --libs luajit` -rdynamic
+LINKER		= gcc
+LFLAGS		= -mwindows -I. -lmingw32 -lSDL2main -lSDL2 -lSDL2_image
 
 SRCDIR		= src
 OBJDIR		= obj
@@ -17,7 +17,7 @@ rm			= rm -f
 all: $(BINDIR)/$(TARGET)
 
 $(BINDIR)/$(TARGET): $(OBJECTS)
-	@$(LINKER) $@ $(LFLAGS) $(OBJECTS)
+	@$(LINKER) -o $@ $(OBJECTS) $(LFLAGS)
 
 $(OBJECTS): $(OBJDIR)/%.o : $(SRCDIR)/%.c
 	@$(CC) $(CFLAGS) -c $< -o $@
