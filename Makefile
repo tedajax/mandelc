@@ -1,6 +1,6 @@
 TARGET		= mandelbrot
 CC			= gcc
-CFLAGS		= -std=c99 I. -g
+CFLAGS		= -std=c99 -I. -g
 
 LINKER		= gcc
 LFLAGS		= -mwindows -I. -lmingw32 -lSDL2main -lSDL2 -lSDL2_image
