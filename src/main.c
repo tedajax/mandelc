@@ -22,15 +22,38 @@ int WIDTH = 800;
 int HEIGHT = 800;
 
 void SetPixel(SDL_Surface *surface, int x, int y, Uint8 r, Uint8 g, Uint8 b);
-int IterationsAtPixel(int x, int y, float minX, float minY, float xScl, float yScl, int maxIter);
-SDL_Surface *CreateMandelbrotSurface(int w, int h, float zoom, float fx, float fy, int iter, SDL_Color *colors, int colorCount);
+int IterationsAtPixel(int x, int y, double minX, double minY, double xScl, double yScl, int maxIter);
+SDL_Surface *CreateMandelbrotSurface(int w, int h, double zoom, double fx, double fy, int iter, SDL_Color *colors, int colorCount);
+int max(int a, int b);
+int min(int a, int b);
+int clamp(int value, int a, int b);
 
 int main(int argc, char *argv[]) {
+	int maxIterations = 250;
+	double zoom = 1.0;
+	double focusX = 0.0;
+	double focusY = 0.0;
+
+	if (argc > 1) {
+		WIDTH = max(1, atoi(argv[1]));
+	}
+
+	if (argc > 2) {
+		HEIGHT = max(1, atoi(argv[2]));
+	}
+
+	if (argc > 3) {
+		focusX = atof(argv[3]);
+	}
+
+	if (argc > 4) {
+		focusY = atof(argv[4]);
+	}
+
 	if (!window_init()) {
 		return 1;
 	}
-
-	int maxIterations = 300;
+	
 	int colorCount = 180;
 	SDL_Color colors[colorCount];
 	for (int i = 0; i < colorCount; ++i) {
@@ -40,8 +63,8 @@ int main(int argc, char *argv[]) {
 		hsvColor.v = 1;
 
 		colors[i] = color_convertHSV(&hsvColor);
-		//colors[i].g = ((float)i / (float)colorCount) * 255;
-		//colors[i].b = (1 - ((float)i / (float)colorCount)) * 255;
+		//colors[i].g = ((double)i / (double)colorCount) * 255;
+		//colors[i].b = (1 - ((double)i / (double)colorCount)) * 255;
 		// colors[i].r = rand() % 256;
 		// colors[i].g = rand() % 256;
 		// colors[i].b = rand() % 256;
@@ -50,10 +73,7 @@ int main(int argc, char *argv[]) {
 
 	bool running = true;
 	SDL_Event sdlEvent;
-
-	float zoom = 1.0f;
-	float focusX = 0.0f;
-	float focusY = 0.0f;
+	
 	bool recalc = false;
 
 	SDL_Surface *image = CreateMandelbrotSurface(WIDTH,
@@ -98,39 +118,31 @@ int main(int argc, char *argv[]) {
 							printf("Zoom: %f\n", zoom);
 							recalc = true;
 						case SDLK_w:
-							focusY -= 1.0f / zoom;
+							focusY -= 1.0 / zoom;
 							recalc = true;
 							break;
 
 						case SDLK_s:
-							focusY += 1.0f / zoom;
+							focusY += 1.0 / zoom;
 							recalc = true;
 							break;
 
 						case SDLK_a:
-							focusX -= 1.0f / zoom;
+							focusX -= 1.0 / zoom;
 							recalc = true;
 							break;
 
 						case SDLK_d:
-							focusX += 1.0f / zoom;
+							focusX += 1.0 / zoom;
 							recalc = true;
+							break;
+
+						case SDLK_b:
+							SDL_SaveBMP(image, "output.bmp");
 							break;
 					}
 
-					if (recalc) {
-						SDL_FreeSurface(image);
-						SDL_DestroyTexture(texture);
-						image = CreateMandelbrotSurface(WIDTH,
-							HEIGHT,
-							zoom,
-							focusX,
-							focusY,
-							maxIterations,
-							colors,
-							colorCount);
-						texture = SDL_CreateTextureFromSurface(g_renderer, image);
-					}
+					
 					break;
 			}
 		}
@@ -142,6 +154,22 @@ int main(int argc, char *argv[]) {
 		SDL_RenderCopy(g_renderer, texture, NULL, NULL);
 
 		SDL_RenderPresent(g_renderer);
+
+		zoom *= 1.1;
+		recalc = true;
+		if (recalc) {
+			SDL_FreeSurface(image);
+			SDL_DestroyTexture(texture);
+			image = CreateMandelbrotSurface(WIDTH,
+				HEIGHT,
+				zoom,
+				focusX,
+				focusY,
+				maxIterations,
+				colors,
+				colorCount);
+			texture = SDL_CreateTextureFromSurface(g_renderer, image);
+		}
 	}
 
 	SDL_DestroyWindow(g_window);
@@ -160,11 +188,11 @@ void SetPixel(SDL_Surface *surface, int x, int y, Uint8 r, Uint8 g, Uint8 b) {
 	*(Uint32 *)p = c;
 }
 
-int IterationsAtPixel(int x, int y, float minX, float minY, float xScl, float yScl, int maxIter) {
+int IterationsAtPixel(int x, int y, double minX, double minY, double xScl, double yScl, int maxIter) {
 	return mandelbrot_iterations(minX + xScl * x, minY + yScl * y, maxIter);
 }
 
-SDL_Surface *CreateMandelbrotSurface(int w, int h, float zoom, float fx, float fy, int iter, SDL_Color *colors, int colorCount) {
+SDL_Surface *CreateMandelbrotSurface(int w, int h, double zoom, double fx, double fy, int iter, SDL_Color *colors, int colorCount) {
 	SDL_Surface *image = SDL_CreateRGBSurface(0,
 		WIDTH,
 		HEIGHT,
@@ -174,15 +202,20 @@ SDL_Surface *CreateMandelbrotSurface(int w, int h, float zoom, float fx, float f
 		0x0000ff00,
 		0x000000ff);
 
-	zoom = fmax(zoom, 1.0f);
+	zoom = fmax(zoom, 1.0);
 
-	float minX = fx + -2 / zoom;
-	float maxX = fx + 2 / zoom;
-	float minY = fy + -2 / zoom;
-	float maxY = fy + 2 / zoom;
+	double normSizeX = 2.0 * ((double)WIDTH / (double)HEIGHT);
+	double normSizeY = 2.0 * ((double)HEIGHT / (double)WIDTH);
 
-	float xScale = ((maxX - minX) / (w - 1));
-	float yScale = ((maxY - minY) / (h - 2));
+	double minX = fx + -normSizeX / zoom;
+	double maxX = fx + normSizeX / zoom;
+	double minY = fy + -normSizeY / zoom;
+	double maxY = fy + normSizeY / zoom;
+
+	double xScale = ((maxX - minX) / (w - 1));
+	double yScale = ((maxY - minY) / (h - 2));
+
+	Uint32 maxTime = 0;
 
 	Uint32 start = SDL_GetTicks();
 	for (int i = 0; i < w; ++i) {
@@ -199,7 +232,7 @@ SDL_Surface *CreateMandelbrotSurface(int w, int h, float zoom, float fx, float f
 	
 
 	Uint32 end = SDL_GetTicks();
-	printf("\n\nTook %u ms\n", end - start);
+	printf("Took %u ms\n\n", end - start);
 
 	return image;
 }
@@ -214,10 +247,10 @@ bool window_init() {
 	}
 
 	g_window = SDL_CreateWindow("Mandelbrot",
-		0, //SDL_WINDOWPOS_UNDEFINED,
-		16, //SDL_WINDOWPOS_UNDEFINED,
-		800,
-		800,
+		SDL_WINDOWPOS_UNDEFINED,
+		SDL_WINDOWPOS_UNDEFINED,
+		WIDTH,
+		HEIGHT,
 		SDL_WINDOW_SHOWN);
 	
 	if (!g_window) {
@@ -236,4 +269,24 @@ bool window_init() {
 	g_screen = SDL_GetWindowSurface(g_window);
 
 	return true;
+}
+
+inline int max(int a, int b) {
+	if (a >= b) {
+		return a;
+	} else {
+		return b;
+	}
+}
+
+inline int min(int a, int b) {
+	if (a < b) {
+		return a;
+	} else {
+		return b;
+	}
+}
+
+inline int clamp(int value, int a, int b) {
+	return min(max(value, a), b);
 }
